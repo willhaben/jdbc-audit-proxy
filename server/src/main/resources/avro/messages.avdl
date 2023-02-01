@@ -1,0 +1,142 @@
+@namespace("at.willhaben.jdbcproxy.server.avro")
+protocol Messages {
+  record SessionRequest {
+    string username; // user issuing session-creation-request
+    string password; // password of above user
+    string db; // which db the session is for
+    string reason; // why session is needed
+    string? forUsername; // user who can use this session (null=same as username)
+  }
+
+  record SessionResponse {
+    int sessionId;
+  }
+
+  record AuthenticationRequest {
+    string username;
+    string password;
+    string db;
+  }
+
+  record AuthenticationResponse {
+    boolean accepted;
+    string? errorMessage = null;
+  }
+
+  record CloseRequest {
+  }
+
+  record CloseResponse {
+  }
+
+  record PingRequest {
+  }
+
+  record PingResponse {
+    boolean ok; // or maybe enum (valid, notresponding, closed, notauthenticated)
+  }
+
+  record MetaDataRequest {
+  }
+
+  record MetaDataResponse {
+    string catalog; // just one catalog (aka database) supported per connection
+    DBMetaData databaseMetaData;
+    array<TableMetaData> tables;
+  }
+
+  // Global settings for this database that a caller may need to know
+  // Specifically, this allows the proxy driver to create an instance
+  // of java.sql.DatabaseMetaData which is sufficiently accurate to allow
+  // clients to correctly interact with the target database. Sadly the
+  // number of fields included in java.sql.DatabaseMetaData is just too
+  // large to ship them all over. And most are actually not needed.
+  record DBMetaData {
+    string identifierQuoteString;
+  }
+
+  record TableMetaData {
+    string? catalogName;
+    string? schemaName;
+    string name;
+    string type;
+    string? remarks;
+    string? typeCatalog;
+    string? typeSchema;
+    string? typeName;
+    array<TableColumnMetaData> columns;
+      // todo: keys, indexes
+  }
+
+  // Represents the results of inspecting a db table
+  record TableColumnMetaData {
+    int ordinal;
+    string name;
+    int type;
+    int size;
+    int precision;
+    int nullable;
+    int charOctetLength;
+  }
+
+  // Represents the results of inspecting a column returned by a query
+  record ResultColumnMetaData {
+    int ordinal;
+    string name;
+    int type;
+    int size;
+    int precision;
+    int nullable;
+  }
+
+  record SelectRequest {
+    string query;
+  }
+
+  // All result columns are mapped to one of these types
+  record BasicValue {
+      union {null, string, long, boolean, double} value;
+  }
+
+  record SelectResponse {
+    ResultColumnsMetaData metadata;
+    array<Row> rows;
+  }
+
+  record ResultColumnsMetaData {
+    array<ResultColumnMetaData> columns;
+  }
+
+  record Row {
+    array<BasicValue> columns;
+  }
+
+  record ErrorResponse {
+    string message;
+  }
+
+  // ========================= wrapper types
+
+  record Request {
+    union {
+      SessionRequest,
+      AuthenticationRequest,
+      CloseRequest,
+      PingRequest,
+      MetaDataRequest,
+      SelectRequest
+    } request;
+  }
+
+  record Response {
+    union {
+      ErrorResponse,
+      SessionResponse,
+      AuthenticationResponse,
+      CloseResponse,
+      PingResponse,
+      MetaDataResponse,
+      SelectResponse
+    } response;
+  }
+}

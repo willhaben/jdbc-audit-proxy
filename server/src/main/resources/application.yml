@@ -1,0 +1,80 @@
+# Config for retrieving app-config from a spring-cloud-config server
+spring:
+  application.name: jdbcauditproxy
+
+proxy:
+  # Specify which port this proxy should listen on (the JDBC driver config needs to include host:port when connecting)
+  port: 5760
+
+  # Specify how many rows of data may be returned from a single query of a proxied database
+  maxRows: 100
+
+  # Specify maximum time that a JDBC connection to the proxy may be open for (ISO-8601 format; see also
+  # java method Duration.parse).
+  socketLifetime: "PT2H"
+
+  # Specify maximum time that a pre-registered session is valid for (after being created with the commandline
+  # tool built in to the jdbcauditproxy driver jarfile). ISO-8601 format.
+  sessionLifetime: "PT8H"
+
+  # Specify maximum time that a SQL query can run for before being cancelled. ISO-8601 format.
+  queryLifetime: "PT2M"
+
+  # Specify how to authenticate/authorized users
+  authenticationManagement: LOCAL
+
+  # When authenticationManagement is LOCAL, then specify the file from which users are loaded.
+  # This is a textfile with lines in format "username:password:group1,group2,group3..."
+  localAuth:
+    filename: ./users.txt
+
+  # When authenticationManagement is LDAP, then specify:
+  # * host: the server on which LDAP is running
+  # * distinguishedNameFormat: a java String.format pattern which maps the username (as specified in the
+  #   jdbc connection) to the corresponding LDAP distinguished name
+  # * groupMemberAttr: the LDAP attribute name on the object with the above distinguished-name which
+  #   holds a list-of-groups
+  # * groupFormat: a java String.format pattern which maps the database-name (as specified in the JDBC
+  #   connection) to an LDAP group name.
+  ldapAuth:
+    host: somehost
+    distinguishedNameFormat: "uid=%s,cn=users,cn=accounts,dc=acme,dc=com"
+    groupMemberAttr: memberOf
+    groupFormat: "cn=dbaccess-%s,cn=groups,cn=accounts,dc=acme,dc=com"
+
+  # When this clause exists then all SQL requests are logged into this database (they are always logged to
+  # STDOUT regardless).
+  #
+  # In addition, when this clause exists then user-sessions are tracked in this DB (when not, they are
+  # tracked in-memory only).
+  #
+  # audit-db:
+  #  driverClass: org.postgresql.Driver
+  #  jdbcUrl: jdbc:postgresql://localhost:5432/postgres
+  #  username: postgres
+  #  password: mysecretpassword
+
+  # Specify how "strictly" user-sessions are enforced.
+  #
+  # values:
+  # * "none" -> sessions are allocated on-demand
+  # * "required" -> session must be created before connecting via JDBC
+  # * "approved" -> session must be created by someone *other than the connecting user*
+  #
+  # A JDBC connection (login) and all commands executed via that connection belong to a "session".
+  # When audit-db is enabled, sessions are stored in the DB. Otherwise they are stored in memory (meaning
+  # that the proxy cannot be behind a load-balancer, unless support for something like redis/memcached is added)
+  session-management: none
+
+  # Specify the list of databases that a user can potentially connect to via this proxy. Which then can
+  # actually connect to depends upon the user authentication data.
+  #
+  # While not mandatory, it is quite useful to list the "audit database" itself (ie audit-db config above)
+  # here; this gives jdbc access auditors the ability to inspect the database contents with the same convenience
+  # that other staff access other "controlled" databases.
+  databases:
+    example:
+      driverClass: org.postgresql.Driver
+      url: jdbc:postgresql://localhost:5432/postgres
+      username: postgres
+      password: mysecretpassword
